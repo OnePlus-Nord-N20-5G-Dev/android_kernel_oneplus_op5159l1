@@ -7056,7 +7056,9 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	ret = of_property_read_string(pdev->dev.of_node, oplus_speaker_type,
 									&pa_name);
 	if (!ret && !strcmp(pa_name, "sia81xx")) {
+#ifdef CONFIG_SND_SOC_SIA81XX
 		ret = soc_aux_init_only_sia81xx(pdev, card);
+#endif
 		if (ret) {
 			pr_err("%s soc_aux_init_only_sia81xx return error.\n", __func__);
 			goto err;
