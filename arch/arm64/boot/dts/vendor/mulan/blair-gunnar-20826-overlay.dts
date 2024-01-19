@@ -2,8 +2,8 @@
 /plugin/;
 
 #include "blair-mulan-overlay-common.dtsi"
-#include "blair-gunnar-20826-overlay.dtsi"
-#include "sensor/gunnar-20826-sensor-qrd.dtsi"
+#include "blair-gunnar-overlay-common.dtsi"
+#include "sensor/gunnar-sensor-qrd.dtsi"
 #include "nfc/mulan-21296-nfc-pn557.dtsi"
 
 / {
