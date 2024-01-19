@@ -5,30 +5,6 @@
 /* #endif OPLUS_ARCH_EXTENDS */
 /* DTBO: Platform common generic overlay */
 
-&reserved_memory {
-	//xbl_uefi_mem address get from: PcdEmbeddedFdBaseAddress +
-	//SERIAL_BUFFER_OFFSET = 0x9FC00000 + 0x3F7000 = 0x9FFF7000
-	//kernel boot log: 0x9FE00000~ 0x9FFF6FFF, xbl-uefi log: 0x9FFF7000 ~ 0x9FFFFFFF
-	kboot_uboot_logmem: kboot_uboot_logmem@0x9FE00000 {
-		reg = <0x0 0x9FE00000 0x0 0x200000>;
-		compatible = "oplus,xbl_uefi_kbootlog";
-		xbluefi-offset = <0x1F7000>;
-		no-map;
-	};
-
-	//#if IS_ENABLED(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO)
-	ramoops: ramoops@0xE9700000 {
-		compatible = "ramoops";
-		reg = <0x0 0xE9700000 0x0 0x600000>;  //6M
-		record-size  = <0x40000>; //256k
-		console-size = <0x40000>; //256k
-		ftrace-size  = <0x100000>; //1M
-		pmsg-size    = <0x100000>; //1M
-		devinfo-size = <0x8000>;  //32k
-		ecc-size     = <0x0>;
-	 };
-};
-
 &soc {
 	wl2868c:wl2868c {
 		compatible = "qualcomm,gpio_wl2868c";
@@ -135,10 +111,6 @@
 	};
 };
 
-/* #ifdef OPLUS_FEATURE_CAMERA_COMMON */
-//#include "camera/blair-camera-sensor-mtp.dtsi"
-/* #endif OPLUS_FEATURE_CAMERA_COMMON */
-
 //#ifdef OPLUS_FEATURE_FINGERPRINT
 &soc{
 	oplus_fp_common {
@@ -175,20 +147,6 @@
 		pinctrl-2 = <&msm_gpio_18_output_high>;
 		pinctrl-3 = <&msm_gpio_17>;
 	};
-
-	//#ifdef OPLUS_FEATURE_THERMAL_HORAE
-	shell_front {
-		compatible = "oplus,shell-temp";
-	};
-
-	shell_frame {
-		compatible = "oplus,shell-temp";
-	};
-
-	shell_back {
-		compatible = "oplus,shell-temp";
-	};
-	//#endif /* OPLUS_FEATURE_THERMAL_HORAE */
 };
 
 &removed_mem {
@@ -234,13 +192,6 @@
 		compatible = "oplus,misc_healthinfo";
 		oplus_misc_healthinfo_support;
 	};
-
-    //#ifdef OPLUS_FEATURE_TP_BASIC
-	oplus_sim_detect {
-		compatible = "oplus, sim_detect";
-		Hw,sim_det = <&tlmm 82 0>;
-	};
-    //#endif /* OPLUS_FEATURE_TP_BASIC */
 };
 
 &tlmm {
@@ -650,34 +601,6 @@
 		compatible = "gpio_wakeup";
 		gpio_table = <2 3 6 12 33 38 56 57 88 90 91 92 99 102 108 113 114 115 116
                               7 8 9 48 51 59 84 85 86 107 117 118 152 153 154 155>;
-	};
-};
-
-//Wei.Tang 2021/09/23 modify for rf_cable
-&tlmm {
-	rf_cable0_active: rf_cable0_active {
-		mux {
-			pins = "gpio24";
-			function = "gpio";
-		};
-		config {
-			pins = "gpio24";
-			drive-strength = <2>;
-			input-enable;
-			bias-pull-up;
-		};
-	};
-};
-
-&soc {
-	oplus_rf_cable {
-		compatible = "oplus,rf_cable";
-		interrupt-parent = <&tlmm>;
-		rf_cable_support_num = <1>;
-		rf,cable0-gpio = <&tlmm 24 0>;
-		rf,cable-support-timer = <0>;
-		pinctrl-names = "rf_cable_active";
-		pinctrl-0 = <&rf_cable0_active>;
 	};
 };
 
