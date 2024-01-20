@@ -42,9 +42,7 @@
 #include "holi-port-config.h"
 #include "msm_holi_dailink.h"
 
-#ifdef OPLUS_FEATURE_AUDIO_FTM
 #include "dailink_extends.h"
-#endif /* OPLUS_FEATURE_AUDIO_FTM */
 
 //#ifdef OPLUS_ARCH_EXTENDS
 #include "codecs/sia81xx/sia81xx_aux_dev_if.h"
@@ -5328,9 +5326,7 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.name = "TX3_CDC_DMA Hostless",
 		.stream_name = "TX3_CDC_DMA Hostless",
 		.dynamic = 1,
-		#ifdef OPLUS_FEATURE_AUDIO_FTM
 		.dpcm_playback = 1,
-		#endif /* OPLUS_FEATURE_AUDIO_FTM */
 		.dpcm_capture = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
@@ -5467,12 +5463,8 @@ static struct snd_soc_dai_link msm_common_misc_fe_dai_links[] = {
 		.ignore_suspend = 1,
 		SND_SOC_DAILINK_REG(afepcm_tx1),
 	},
-	#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
 	MI2S_TX_HOSTLESS_DAILINK("Primary MI2S TX_Hostless", "Primary MI2S_TX Hostless Capture", pri_mi2s_tx_hostless),
-	#endif /* OPLUS_FEATURE_TFA98XX_VI_FEEDBACK */
-	#ifdef OPLUS_FEATURE_AUDIO_FTM
 	TX_CDC_DMA_HOSTLESS_DAILINK("TX4_CDC_DMA Hostless", "TX4_CDC_DMA Hostless", tx4_cdcdma_hostless),
-	#endif /* OPLUS_FEATURE_AUDIO_FTM */
 
 #ifdef CONFIG_SND_SOC_AW882XX
 	{/* hw:x,44 */
