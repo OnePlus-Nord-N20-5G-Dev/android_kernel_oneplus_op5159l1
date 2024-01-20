@@ -5467,10 +5467,8 @@ static struct snd_soc_dai_link msm_common_misc_fe_dai_links[] = {
 		.ignore_suspend = 1,
 		SND_SOC_DAILINK_REG(afepcm_tx1),
 	},
-	#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
+  #if 0
 	MI2S_TX_HOSTLESS_DAILINK("Primary MI2S TX_Hostless", "Primary MI2S_TX Hostless Capture", pri_mi2s_tx_hostless),
-	#endif /* OPLUS_FEATURE_TFA98XX_VI_FEEDBACK */
-	#ifdef OPLUS_FEATURE_AUDIO_FTM
 	TX_CDC_DMA_HOSTLESS_DAILINK("TX4_CDC_DMA Hostless", "TX4_CDC_DMA Hostless", tx4_cdcdma_hostless),
 	#endif /* OPLUS_FEATURE_AUDIO_FTM */
 
