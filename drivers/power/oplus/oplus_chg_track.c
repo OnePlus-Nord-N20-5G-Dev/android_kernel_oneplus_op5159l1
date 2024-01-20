@@ -3274,11 +3274,6 @@ static void oplus_chg_track_upload_info_dwork(struct work_struct *work)
 		return;
 
 	mutex_lock(&chip->dcs_info_lock);
-#if defined(CONFIG_OPLUS_FEATURE_FEEDBACK) || defined(CONFIG_OPLUS_FEATURE_FEEDBACK_MODULE)
-	ret = fb_kevent_send_to_user(chip->dcs_info);
-#elif defined(CONFIG_OPLUS_KEVENT_UPLOAD)
-	ret = kevent_send_to_user(chip->dcs_info);
-#endif
 	mutex_unlock(&chip->dcs_info_lock);
 	if (!ret)
 		complete(&chip->trigger_ack);
