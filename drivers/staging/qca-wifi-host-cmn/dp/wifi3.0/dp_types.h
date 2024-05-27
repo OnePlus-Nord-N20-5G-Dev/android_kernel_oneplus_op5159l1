@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -554,8 +554,6 @@ enum flow_pool_status {
 	FLOW_POOL_VO_PAUSED = 4,
 	FLOW_POOL_INVALID = 5,
 	FLOW_POOL_INACTIVE = 6,
-};
-
 	FLOW_POOL_ACTIVE_UNPAUSED_REATTACH = 7,
 };
 
@@ -1074,6 +1072,8 @@ struct dp_soc_stats {
 			uint32_t peer_unauth_rx_pkt_drop;
 			/* MSDU len err count */
 			uint32_t msdu_len_err;
+			/* Rx invalid tid count */
+			uint32_t rx_invalid_tid_err;
 		} err;
 
 		/* packet count per core - per ring */
@@ -1926,6 +1926,7 @@ struct dp_soc {
 	qdf_spinlock_t reo_desc_deferred_freelist_lock;
 	bool reo_desc_deferred_freelist_init;
 #endif
+	bool is_tx_pause;
 };
 
 #ifdef IPA_OFFLOAD

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -244,6 +244,32 @@ static struct cdev wlan_hdd_state_cdev;
 static struct class *class;
 static dev_t device;
 static bool hdd_loaded = false;
+#ifndef MODULE
+static struct gwlan_loader *wlan_loader;
+static ssize_t wlan_boot_cb(struct kobject *kobj,
+			    struct kobj_attribute *attr,
+			    const char *buf, size_t count);
+struct gwlan_loader {
+	bool loaded_state;
+	struct kobject *boot_wlan_obj;
+	struct attribute_group *attr_group;
+};
+
+static struct kobj_attribute wlan_boot_attribute =
+	__ATTR(boot_wlan, 0220, NULL, wlan_boot_cb);
+
+static struct attribute *attrs[] = {
+	&wlan_boot_attribute.attr,
+	NULL,
+};
+#define MODULE_INITIALIZED 1
+
+#ifdef MULTI_IF_NAME
+#define WLAN_LOADER_NAME "boot_" MULTI_IF_NAME
+#else
+#define WLAN_LOADER_NAME "boot_wlan"
+#endif
+#endif
 
 /* the Android framework expects this param even though we don't use it */
 #define BUF_LEN 20
@@ -372,83 +398,6 @@ struct sock *cesium_nl_srv_sock;
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 static void wlan_hdd_auto_shutdown_cb(void);
 #endif
-
-#ifdef OPLUS_FEATURE_SWITCH_CHECK
-//Add for: check driver status for switch issue
-static struct wlan_hostdriver_loadresult captue_wlan_hostdriver_loadresult = {
-	.insmod_status = 0,
-	.rmmod_status = 0,
-	.ini_prase_status = 0,
-};
-
-
-void wlan_driver_send_uevent(char *enable)
-{
-	int ret_val;
-	char event[] = "SUBSYSTEM=msm_subsys";
-	char wifi_switch_event[WLAN_HOST_STATE_LEN] = {'\0'};
-	char wifi_enable[WLAN_HOST_STATE_LEN] = {'\0'};
-	char ini_prase[WLAN_HOST_STATE_LEN] = {'\0'};
-	char insmod_stats[WLAN_HOST_STATE_LEN] = {'\0'};
-	char rmmod_stats[WLAN_HOST_STATE_LEN] = {'\0'};
-	char *envp[7];
-	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-
-	snprintf(wifi_switch_event, sizeof(wifi_switch_event) - 1, "WLAN_SWITCH_EVENT=driver");
-
-	if(enable) {
-		snprintf(wifi_enable, sizeof(wifi_enable) - 1, "WIFI_TURNING=%s", enable);
-	} else {
-		snprintf(wifi_enable, sizeof(wifi_enable) - 1, "WIFI_TURNING=unkown");
-	}
-
-	if(captue_wlan_hostdriver_loadresult.ini_prase_status == INI_PRASE_SUCCESS) {
-		snprintf(ini_prase, sizeof(ini_prase) - 1, "INIPRASE=%s", "success");
-	} else if(captue_wlan_hostdriver_loadresult.ini_prase_status == INI_PRASE_FAIL) {
-		snprintf(ini_prase, sizeof(ini_prase) - 1, "INIPRASE=%s", "fail");
-	} else {
-		snprintf(ini_prase, sizeof(ini_prase) - 1, "INIPRASE=%s", "unknow");
-	}
-
-	if(captue_wlan_hostdriver_loadresult.insmod_status == INSMOD_SUCCESS) {
-		snprintf(insmod_stats, sizeof(insmod_stats) - 1, "INSMODSTATUS=%s", "success");
-	} else if(captue_wlan_hostdriver_loadresult.insmod_status == INSMOD_FAIL) {
-		snprintf(insmod_stats, sizeof(insmod_stats) - 1, "INSMODSTATUS=%s", "fail");
-	} else {
-		snprintf(insmod_stats, sizeof(insmod_stats) - 1, "INSMODSTATUS=%s", "unknow");
-	}
-
-	if(captue_wlan_hostdriver_loadresult.rmmod_status == RMMOD_SUCCESS) {
-		snprintf(rmmod_stats, sizeof(rmmod_stats) - 1, "RMMODSTATUS=%s", "success");
-	} else if(captue_wlan_hostdriver_loadresult.rmmod_status == RMMOD_FAIL) {
-		snprintf(rmmod_stats, sizeof(rmmod_stats) - 1, "RMMODSTATUS=%s", "fail");
-	} else {
-		snprintf(rmmod_stats, sizeof(rmmod_stats) - 1, "RMMODSTATUS=%s", "unknow");
-	}
-
-	envp[0] = (char *)&event;
-	wifi_switch_event[WLAN_HOST_STATE_LEN-1] = '\0';
-	envp[1] = (char *)&wifi_switch_event;
-	wifi_enable[WLAN_HOST_STATE_LEN-1] = '\0';
-	envp[2] = (char *)&wifi_enable;
-	ini_prase[WLAN_HOST_STATE_LEN-1] = '\0';
-	envp[3] = (char *)&ini_prase;
-	insmod_stats[WLAN_HOST_STATE_LEN-1] = '\0';
-	envp[4] = (char *)&insmod_stats;
-	rmmod_stats[WLAN_HOST_STATE_LEN-1] = '\0';
-	envp[5] = (char *)&rmmod_stats;
-	envp[6] = 0;
-
-	if(qdf_dev && qdf_dev->dev){
-		ret_val = kobject_uevent_env(&(qdf_dev->dev->kobj), KOBJ_CHANGE, envp);
-		if(!ret_val){
-			pr_info("wlan switch:kobject_uevent_env %s\n", enable);
-		}else{
-			pr_info("wlan switch:kobject_uevent_env fail,error=%d!\n", ret_val);
-		}
-	}
-}
-#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 
 QDF_STATUS hdd_common_roam_callback(struct wlan_objmgr_psoc *psoc,
 				     uint8_t session_id,
@@ -3641,6 +3590,7 @@ static void hdd_nan_register_callbacks(struct hdd_context *hdd_ctx)
 	cb_obj.peer_departed_ind = hdd_ndp_peer_departed_handler;
 
 	cb_obj.nan_concurrency_update = hdd_nan_concurrency_update;
+	cb_obj.set_mc_list = hdd_update_multicast_list;
 
 	os_if_nan_register_hdd_callbacks(hdd_ctx->psoc, &cb_obj);
 }
@@ -4215,7 +4165,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 			goto deregister_cb;
 
 		/*
-		 * NAN compoenet requires certian operations like, open adapter,
+		 * NAN component requires certain operations like, open adapter,
 		 * close adapter, etc. to be initiated by HDD, for those
 		 * register HDD callbacks with UMAC's NAN componenet.
 		 */
@@ -5001,8 +4951,7 @@ hdd_set_derived_multicast_list(struct wlan_objmgr_psoc *psoc,
 
 /**
  * __hdd_set_multicast_list() - set the multicast address list
- * @dev:	Pointer to the WLAN device.
- * @skb:	Pointer to OS packet (sk_buff).
+ * @dev: Pointer to the WLAN device.
  *
  * This funciton sets the multicast address list.
  *
@@ -5044,6 +4993,7 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	if (!mc_list_request)
 		return;
 
+	qdf_spin_lock_bh(&adapter->mc_list_lock);
 	/* Delete already configured multicast address list */
 	if (adapter->mc_addr_list.mc_cnt > 0)
 		hdd_disable_and_flush_mc_addr_list(adapter,
@@ -5096,6 +5046,7 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	hdd_enable_mc_addr_filtering(adapter, pmo_mc_list_change_notify);
 
 free_req:
+	qdf_spin_unlock_bh(&adapter->mc_list_lock);
 	qdf_mem_free(mc_list_request);
 }
 
@@ -5115,6 +5066,33 @@ static void hdd_set_multicast_list(struct net_device *net_dev)
 	__hdd_set_multicast_list(net_dev);
 
 	osif_vdev_sync_op_stop(vdev_sync);
+}
+
+void hdd_update_multicast_list(struct wlan_objmgr_vdev *vdev)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	struct hdd_adapter *adapter;
+	uint8_t vdev_id = wlan_vdev_get_id(vdev);
+	struct net_device *net_dev;
+
+	if (!hdd_ctx) {
+		hdd_err("hdd_ctx is null");
+		return;
+	}
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
+	if (!adapter) {
+		hdd_err("adapter is null for vdev_id %d", vdev_id);
+		return;
+	}
+
+	net_dev = adapter->dev;
+	if (!net_dev) {
+		hdd_err("netdev is null");
+		return;
+	}
+
+	__hdd_set_multicast_list(net_dev);
 }
 
 #ifdef WLAN_FEATURE_TSF_PTP
@@ -6221,6 +6199,7 @@ static void hdd_cleanup_adapter(struct hdd_context *hdd_ctx,
 	hdd_periodic_sta_stats_mutex_destroy(adapter);
 	hdd_apf_context_destroy(adapter);
 	qdf_spinlock_destroy(&adapter->vdev_lock);
+	qdf_spinlock_destroy(&adapter->mc_list_lock);
 	hdd_sta_info_deinit(&adapter->sta_info_list);
 	hdd_sta_info_deinit(&adapter->cache_sta_info_list);
 
@@ -7048,6 +7027,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 	qdf_list_create(&adapter->blocked_scan_request_q, WLAN_MAX_SCAN_COUNT);
 	qdf_mutex_create(&adapter->blocked_scan_request_q_lock);
 	qdf_event_create(&adapter->acs_complete_event);
+	qdf_spinlock_create(&adapter->mc_list_lock);
 	qdf_event_create(&adapter->peer_cleanup_done);
 	hdd_sta_info_init(&adapter->sta_info_list);
 	hdd_sta_info_init(&adapter->cache_sta_info_list);
@@ -7294,12 +7274,13 @@ static void hdd_close_pre_cac_adapter(struct hdd_context *hdd_ctx)
 							SAP_PRE_CAC_IFNAME);
 	if (!pre_cac_adapter)
 		return;
+	hdd_ctx->sap_pre_cac_work.fn = NULL;
+	hdd_ctx->sap_pre_cac_work.arg = NULL;
 
 	errno = osif_vdev_sync_trans_start_wait(pre_cac_adapter->dev,
 						&vdev_sync);
 	if (errno)
 		return;
-
 	osif_vdev_sync_unregister(pre_cac_adapter->dev);
 	osif_vdev_sync_wait_for_ops(vdev_sync);
 
@@ -7527,7 +7508,7 @@ QDF_STATUS hdd_stop_adapter(struct hdd_context *hdd_ctx,
 			sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);
 			if (!wlan_sap_is_pre_cac_context(sap_ctx) &&
 			    (hdd_ctx->sap_pre_cac_work.fn))
-				cds_flush_work(&hdd_ctx->sap_pre_cac_work);
+				qdf_flush_work(&hdd_ctx->sap_pre_cac_work);
 
 			hdd_close_pre_cac_adapter(hdd_ctx);
 
@@ -7704,7 +7685,7 @@ QDF_STATUS hdd_stop_all_adapters(struct hdd_context *hdd_ctx)
 	hdd_enter();
 
 	if (hdd_ctx->sap_pre_cac_work.fn)
-		cds_flush_work(&hdd_ctx->sap_pre_cac_work);
+		qdf_flush_work(&hdd_ctx->sap_pre_cac_work);
 
 	hdd_for_each_adapter_dev_held_safe(hdd_ctx, adapter, next_adapter,
 					   NET_DEV_HOLD_STOP_ALL_ADAPTERS) {
@@ -10576,6 +10557,13 @@ void hdd_send_mscs_action_frame(struct hdd_context *hdd_ctx,
 	uint64_t mscs_vo_pkt_delta;
 	unsigned long tx_vo_pkts;
 
+	/*
+	 * To disable MSCS feature in driver set mscs_pkt_threshold = 0
+	 * in ini file.
+	 */
+	if (!hdd_ctx->config->mscs_pkt_threshold)
+		return;
+
 	tx_vo_pkts = adapter->hdd_stats.tx_rx_stats.tx_classified_ac[SME_AC_VO];
 
 	if (!adapter->mscs_counter)
@@ -12955,18 +12943,9 @@ struct hdd_context *hdd_context_create(struct device *dev)
 			WLAN_INI_FILE, status);
 		/* Assert if failed to parse at least one INI parameter */
 		QDF_BUG(status != QDF_STATUS_E_INVAL);
-		#ifdef OPLUS_FEATURE_SWITCH_CHECK
-		//Add for: check driver status for switch issue
-		captue_wlan_hostdriver_loadresult.ini_prase_status = INI_PRASE_FAIL;
-		#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 		ret = qdf_status_to_os_return(status);
 		goto err_free_config;
 	}
-
-	#ifdef OPLUS_FEATURE_SWITCH_CHECK
-	//Add for: check driver status for switch issue
-	captue_wlan_hostdriver_loadresult.ini_prase_status = INI_PRASE_SUCCESS;
-	#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 
 	ret = hdd_objmgr_create_and_store_psoc(hdd_ctx, DEFAULT_PSOC_ID);
 	if (ret) {
@@ -13778,26 +13757,6 @@ static int hdd_update_mac_addr_to_fw(struct hdd_context *hdd_ctx)
 		return -EAGAIN;
 	return 0;
 }
-#ifdef OPLUS_BUG_STABILITY
-/**
- * qdf_is_macaddr_Fw_Default() - check for a MacAddress of all zeros.
- * @mac_addr: pointer to the struct qdf_mac_addr to check.
- *
- * This function returns a bool that tells if a MacAddress is made up of
- * all zeros.
- *
- * Return: true if the MacAddress is all Zeros
- * false if the MacAddress is not all Zeros.
- */
-#define QDF_MAC_ADDR_FW_DEFAULT { {00,0x03,0x7f,0x12,00,00} }
-static bool qdf_is_macaddr_Fw_Default(struct qdf_mac_addr *mac_addr)
-{
-
-	struct qdf_mac_addr fw_mac_addr = QDF_MAC_ADDR_FW_DEFAULT;
-	return 0 == memcmp(mac_addr, &fw_mac_addr, QDF_MAC_ADDR_SIZE-2);
-
-}
-#endif /* OPLUS_BUG_STABILITY */
 
 /**
  * hdd_initialize_mac_address() - API to get wlan mac addresses
@@ -13833,21 +13792,7 @@ static int hdd_initialize_mac_address(struct hdd_context *hdd_ctx)
 	hdd_info("using default MAC address");
 
 	/* Use fw provided MAC */
-	#ifndef OPLUS_BUG_STABILITY
 	if (!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) {
-	#else
-	if ((!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) && (!qdf_is_macaddr_Fw_Default(&hdd_ctx->hw_macaddr))) {
-		#ifdef OPLUS_FEATURE_WIFI_MAC
-		if (hdd_ctx->hw_macaddr.bytes[0] & 0x01) {
-			uint8_t opbytes[QDF_MAC_ADDR_SIZE];
-			int8_t ii;
-			for (ii = 0; ii < QDF_MAC_ADDR_SIZE; ++ii) {
-				opbytes[ii] = hdd_ctx->hw_macaddr.bytes[QDF_MAC_ADDR_SIZE - 1 - ii];
-			}
-			qdf_mem_copy(hdd_ctx->hw_macaddr.bytes, opbytes, QDF_MAC_ADDR_SIZE);
-		}
-		#endif /* OPLUS_FEATURE_WIFI_MAC */
-	#endif /* OPLUS_BUG_STABILITY */
 		hdd_update_macaddr(hdd_ctx, hdd_ctx->hw_macaddr, false);
 		update_mac_addr_to_fw = false;
 		return 0;
@@ -14360,6 +14305,7 @@ static int hdd_features_init(struct hdd_context *hdd_ctx)
 	mac_handle_t mac_handle;
 	bool b_cts2self, is_imps_enabled;
 	bool rf_test_mode;
+	bool std_6ghz_conn_policy;
 
 	hdd_enter();
 
@@ -14458,6 +14404,17 @@ static int hdd_features_init(struct hdd_context *hdd_ctx)
 		wlan_cm_set_6ghz_key_mgmt_mask(hdd_ctx->psoc,
 					       ALLOWED_KEYMGMT_6G_MASK);
 	}
+
+	status = ucfg_mlme_is_standard_6ghz_conn_policy_enabled(hdd_ctx->psoc,
+							&std_6ghz_conn_policy);
+
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_err("Get 6ghz standard connection policy failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (std_6ghz_conn_policy)
+		wlan_cm_set_standard_6ghz_conn_policy(hdd_ctx->psoc, true);
+
 	hdd_thermal_stats_cmd_init(hdd_ctx);
 	sme_set_cal_failure_event_cb(hdd_ctx->mac_handle,
 				     hdd_cal_fail_send_event);
@@ -16844,8 +16801,6 @@ static void __hdd_inform_wifi_off(void)
 	ucfg_blm_wifi_off(hdd_ctx->pdev);
 }
 
-int hdd_driver_load(void);
-
 static void hdd_inform_wifi_off(void)
 {
 	int ret;
@@ -16902,6 +16857,7 @@ static void hdd_inform_wifi_on(void)
 }
 #endif
 
+int hdd_driver_load(void);
 static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 						const char __user *user_buf,
 						size_t count,
@@ -16921,22 +16877,14 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 	}
 
 	if (strncmp(buf, wlan_off_str, strlen(wlan_off_str)) == 0) {
-		pr_info("Wifi turning off from UI\n");
+		hdd_info("Wifi turning off from UI\n");
 		hdd_inform_wifi_off();
-		#ifdef OPLUS_FEATURE_SWITCH_CHECK
-		//Add for: check driver status for switch issue
-		wlan_driver_send_uevent("TURN_OFF");
-		#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 		goto exit;
 	}
 
 	if (strncmp(buf, wlan_on_str, strlen(wlan_on_str)) == 0) {
-		pr_info("Wifi Turning On from UI\n");
-		#ifdef OPLUS_FEATURE_SWITCH_CHECK
-		//Add for: check driver status for switch issue
-		wlan_driver_send_uevent("TURN_ON");
-		#endif /* OPLUS_FEATURE_SWITCH_CHECK */
-        turning_on = true;
+		hdd_info("Wifi Turning On from UI\n");
+		turning_on = true;
 	}
 
 	if (strncmp(buf, wlan_on_str, strlen(wlan_on_str)) != 0) {
@@ -16946,11 +16894,13 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 
 	if (!hdd_loaded) {
 		if (hdd_driver_load()) {
-      hdd_info("is_driver_loaded %d is_driver_recovering %d",
-         cds_is_driver_loaded(), cds_is_driver_recovering());
+			pr_err("%s: Failed to init hdd module\n", __func__);
 			goto exit;
 		}
 	}
+
+	hdd_info("is_driver_loaded %d is_driver_recovering %d",
+		 cds_is_driver_loaded(), cds_is_driver_recovering());
 
 	if (!cds_is_driver_loaded() || cds_is_driver_recovering()) {
 		rc = wait_for_completion_timeout(&wlan_start_comp,
@@ -17831,10 +17781,7 @@ int hdd_driver_load(void)
 
 	hdd_loaded = true;
 	hdd_debug("%s: driver loaded", WLAN_MODULE_NAME);
-	#ifdef OPLUS_FEATURE_SWITCH_CHECK
-	//Add for: check driver status for switch issue
-	captue_wlan_hostdriver_loadresult.insmod_status = INSMOD_SUCCESS;
-	#endif /* OPLUS_FEATURE_SWITCH_CHECK */
+
 	return 0;
 
 pld_deinit:
@@ -17865,10 +17812,6 @@ sync_deinit:
 	hdd_qdf_deinit();
 
 exit:
-	#ifdef OPLUS_FEATURE_SWITCH_CHECK
-	//Add for: check driver status for switch issue
-	captue_wlan_hostdriver_loadresult.insmod_status = INSMOD_FAIL;
-	#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 	return errno;
 }
 
@@ -17897,10 +17840,6 @@ void hdd_driver_unload(void)
 	QDF_BUG(QDF_IS_STATUS_SUCCESS(status));
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Unable to unload wlan; status:%u", status);
-		#ifdef OPLUS_FEATURE_SWITCH_CHECK
-		//Add for: check driver status for switch issue
-		captue_wlan_hostdriver_loadresult.rmmod_status = RMMOD_FAIL;
-		#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 		return;
 	}
 
@@ -17939,10 +17878,6 @@ void hdd_driver_unload(void)
 	QDF_BUG(QDF_IS_STATUS_SUCCESS(status));
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Unable to unload wlan; status:%u", status);
-		#ifdef OPLUS_FEATURE_SWITCH_CHECK
-		//Add for: check driver status for switch issue
-		captue_wlan_hostdriver_loadresult.rmmod_status = RMMOD_FAIL;
-		#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 		return;
 	}
 
@@ -17963,16 +17898,139 @@ void hdd_driver_unload(void)
 	osif_sync_deinit();
 
 	hdd_qdf_deinit();
-	#ifdef OPLUS_FEATURE_SWITCH_CHECK
-	//Add for: check driver status for switch issue
-	captue_wlan_hostdriver_loadresult.rmmod_status = RMMOD_SUCCESS;
-	#endif /* OPLUS_FEATURE_SWITCH_CHECK */
 }
 
 #ifdef FEATURE_WLAN_RESIDENT_DRIVER
 EXPORT_SYMBOL(hdd_driver_unload);
 #endif
 
+#ifndef MODULE
+/**
+ * wlan_boot_cb() - Wlan boot callback
+ * @kobj:      object whose directory we're creating the link in.
+ * @attr:      attribute the user is interacting with
+ * @buff:      the buffer containing the user data
+ * @count:     number of bytes in the buffer
+ *
+ * This callback is invoked when the fs is ready to start the
+ * wlan driver initialization.
+ *
+ * Return: 'count' on success or a negative error code in case of failure
+ */
+static ssize_t wlan_boot_cb(struct kobject *kobj,
+			    struct kobj_attribute *attr,
+			    const char *buf,
+			    size_t count)
+{
+
+	if (wlan_loader->loaded_state) {
+		hdd_err("wlan driver already initialized");
+		return -EALREADY;
+	}
+
+	if (hdd_driver_load())
+		return -EIO;
+
+	wlan_loader->loaded_state = MODULE_INITIALIZED;
+
+	return count;
+}
+
+/**
+ * hdd_sysfs_cleanup() - cleanup sysfs
+ *
+ * Return: None
+ *
+ */
+static void hdd_sysfs_cleanup(void)
+{
+	/* remove from group */
+	if (wlan_loader->boot_wlan_obj && wlan_loader->attr_group)
+		sysfs_remove_group(wlan_loader->boot_wlan_obj,
+				   wlan_loader->attr_group);
+
+	/* unlink the object from parent */
+	kobject_del(wlan_loader->boot_wlan_obj);
+
+	/* free the object */
+	kobject_put(wlan_loader->boot_wlan_obj);
+
+	kfree(wlan_loader->attr_group);
+	kfree(wlan_loader);
+
+	wlan_loader = NULL;
+}
+
+/**
+ * wlan_init_sysfs() - Creates the sysfs to be invoked when the fs is
+ * ready
+ *
+ * This is creates the syfs entry boot_wlan. Which shall be invoked
+ * when the filesystem is ready.
+ *
+ * QDF API cannot be used here since this function is called even before
+ * initializing WLAN driver.
+ *
+ * Return: 0 for success, errno on failure
+ */
+static int wlan_init_sysfs(void)
+{
+	int ret = -ENOMEM;
+
+	wlan_loader = kzalloc(sizeof(*wlan_loader), GFP_KERNEL);
+	if (!wlan_loader)
+		return -ENOMEM;
+
+	wlan_loader->boot_wlan_obj = NULL;
+	wlan_loader->attr_group = kzalloc(sizeof(*(wlan_loader->attr_group)),
+					  GFP_KERNEL);
+	if (!wlan_loader->attr_group)
+		goto error_return;
+
+	wlan_loader->loaded_state = 0;
+	wlan_loader->attr_group->attrs = attrs;
+
+	wlan_loader->boot_wlan_obj = kobject_create_and_add(WLAN_LOADER_NAME,
+							    kernel_kobj);
+	if (!wlan_loader->boot_wlan_obj) {
+		hdd_err("sysfs create and add failed");
+		goto error_return;
+	}
+
+	ret = sysfs_create_group(wlan_loader->boot_wlan_obj,
+				 wlan_loader->attr_group);
+	if (ret) {
+		hdd_err("sysfs create group failed; errno:%d", ret);
+		goto error_return;
+	}
+
+	return 0;
+
+error_return:
+	hdd_sysfs_cleanup();
+
+	return ret;
+}
+
+/**
+ * wlan_deinit_sysfs() - Removes the sysfs created to initialize the wlan
+ *
+ * Return: 0 on success or errno on failure
+ */
+static int wlan_deinit_sysfs(void)
+{
+	if (!wlan_loader) {
+		hdd_err("wlan_loader is null");
+		return -EINVAL;
+	}
+
+	hdd_sysfs_cleanup();
+	return 0;
+}
+
+#endif /* MODULE */
+
+#ifdef MODULE
 /**
  * hdd_module_init() - Module init helper
  *
@@ -17997,7 +18055,21 @@ static int hdd_module_init(void)
 	return ret;
 }
 #endif
+#else
+static int __init hdd_module_init(void)
+{
+	int ret = -EINVAL;
 
+	ret = wlan_init_sysfs();
+	if (ret)
+		hdd_err("Failed to create sysfs entry");
+
+	return ret;
+}
+#endif
+
+
+#ifdef MODULE
 /**
  * hdd_module_exit() - Exit function
  *
@@ -18015,6 +18087,13 @@ static void __exit hdd_module_exit(void)
 	hdd_driver_unload();
 }
 #endif
+#else
+static void __exit hdd_module_exit(void)
+{
+	hdd_driver_unload();
+	wlan_deinit_sysfs();
+}
+#endif
 
 static int fwpath_changed_handler(const char *kmessage,
 				  const struct kernel_param *kp)
@@ -18028,6 +18107,11 @@ static int con_mode_handler_ftm(const char *kmessage,
 	int ret;
 
 	ret = param_set_int(kmessage, kp);
+
+	if (cds_is_driver_loaded() || cds_is_load_or_unload_in_progress()) {
+		pr_err("Driver already loaded or load/unload in progress");
+		return -ENOTSUPP;
+	}
 
 	if (con_mode_ftm != QDF_GLOBAL_FTM_MODE) {
 		pr_err("Only FTM mode supported!");
@@ -18090,6 +18174,7 @@ void hdd_clean_up_pre_cac_interface(struct hdd_context *hdd_ctx)
 	uint8_t vdev_id;
 	QDF_STATUS status;
 	struct hdd_adapter *precac_adapter;
+	struct sap_context *sap_ctx;
 
 	status = wlan_sap_get_pre_cac_vdev_id(hdd_ctx->mac_handle, &vdev_id);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -18100,6 +18185,13 @@ void hdd_clean_up_pre_cac_interface(struct hdd_context *hdd_ctx)
 	precac_adapter = hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
 	if (!precac_adapter) {
 		hdd_err("invalid pre cac adapter");
+		return;
+	}
+
+	sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(precac_adapter);
+	if (wlan_sap_is_pre_cac_context(sap_ctx) &&
+	    hdd_ctx->sap_pre_cac_work.fn) {
+		hdd_debug("pre_cac_work already scheduled");
 		return;
 	}
 

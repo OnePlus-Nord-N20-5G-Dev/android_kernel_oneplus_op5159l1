@@ -167,24 +167,12 @@ include $(DLKM_DIR)/AndroidKernelModule.mk
 ifneq ($(findstring $(WLAN_CHIPSET),$(WIFI_DRIVER_DEFAULT)),)
 ifeq ($(PRODUCT_VENDOR_MOVE_ENABLED),true)
 ifneq ($(WIFI_DRIVER_INSTALL_TO_KERNEL_OUT),)
-#ifdef OPLUS_FEATURE_REMAKE_OPTIMIZATION
-#$(shell mkdir -p $(TARGET_OUT_VENDOR)/lib/modules; \
-#	ln -sf /$(TARGET_COPY_OUT_VENDOR)/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE) $(TARGET_OUT_VENDOR)/lib/modules/$(LOCAL_MODULE))
-#else
-$(shell mkdir -p $(TARGET_OUT_VENDOR)/lib/modules)
-ifeq ($(wildcard $(TARGET_OUT_VENDOR)/lib/modules/$(LOCAL_MODULE)),)
-$(call link-file-after-check,/$(TARGET_COPY_OUT_VENDOR)/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE),$(TARGET_OUT_VENDOR)/lib/modules/$(LOCAL_MODULE))
-endif
-#endif
+$(shell mkdir -p $(TARGET_OUT_VENDOR)/lib/modules; \
+	ln -sf /$(TARGET_COPY_OUT_VENDOR)/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE) $(TARGET_OUT_VENDOR)/lib/modules/$(LOCAL_MODULE))
 endif
 else
-#ifdef OPLUS_FEATURE_REMAKE_OPTIMIZATION
-#$(shell mkdir -p $(TARGET_OUT)/lib/modules; \
-#	ln -sf /system/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE) $(TARGET_OUT)/lib/modules/$(LOCAL_MODULE))
-#else
-$(shell mkdir -p $(TARGET_OUT)/lib/modules)
-$(call link-file-after-check,/system/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE),$(TARGET_OUT)/lib/modules/$(LOCAL_MODULE))
-#endif
+$(shell mkdir -p $(TARGET_OUT)/lib/modules; \
+	ln -sf /system/lib/modules/$(WLAN_CHIPSET)/$(LOCAL_MODULE) $(TARGET_OUT)/lib/modules/$(LOCAL_MODULE))
 endif
 endif
 
@@ -194,19 +182,10 @@ else
 TARGET_FW_PATH := $(TARGET_OUT_ETC)/$(TARGET_FW_DIR)
 endif
 
-#ifdef OPLUS_FEATURE_REMAKE_OPTIMIZATION
-#$(shell mkdir -p $(TARGET_FW_PATH); \
-#	ln -sf $(TARGET_MAC_BIN_PATH)/wlan_mac.bin $(TARGET_FW_PATH)/wlan_mac.bin)
-#else
-$(shell mkdir -p $(TARGET_FW_PATH))
-$(call link-file-after-check,$(TARGET_MAC_BIN_PATH)/wlan_mac.bin,$(TARGET_FW_PATH)/wlan_mac.bin)
-#endif
+$(shell mkdir -p $(TARGET_FW_PATH); \
+	ln -sf $(TARGET_MAC_BIN_PATH)/wlan_mac.bin $(TARGET_FW_PATH)/wlan_mac.bin)
 ifneq ($(GENERIC_ODM_IMAGE),true)
-#ifdef OPLUS_FEATURE_REMAKE_OPTIMIZATION
-#$(shell ln -sf $(TARGET_CFG_PATH)/WCNSS_qcom_cfg.ini $(TARGET_FW_PATH)/WCNSS_qcom_cfg.ini)
-#else
-$(call link-file-after-check,$(TARGET_CFG_PATH)/WCNSS_qcom_cfg.ini,$(TARGET_FW_PATH)/WCNSS_qcom_cfg.ini)
-#endif
+$(shell ln -sf $(TARGET_CFG_PATH)/WCNSS_qcom_cfg.ini $(TARGET_FW_PATH)/WCNSS_qcom_cfg.ini)
 endif
 endif # Multi-ko check
 endif # DLKM check
