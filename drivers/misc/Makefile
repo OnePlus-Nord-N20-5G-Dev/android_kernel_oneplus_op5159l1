@@ -72,8 +72,3 @@ obj-$(CONFIG_OPLUS_RF_CABLE_MONITOR)	+= oplus_rf_cable_monitor.o
 #ifdef OPLUS_FEATURE_TP_BASIC
 obj-$(CONFIG_SIM_DETECT)	+= sim_detect.o
 #endif
-
-#ifdef OPLUS_FEATURE_TP_BASIC
-obj-$(CONFIG_OPLUS_MISC_HEALTHINFO)		+= oplus_misc_healthinfo/
-#endif
-
