@@ -454,6 +454,9 @@ struct binder_proc {
 	int deferred_work;
 	int outstanding_txns;
 	bool is_dead;
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_SCHED_ASSIST)
+        int proc_type;
+#endif /* defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_SCHED_ASSIST) */
 	bool is_frozen;
 	bool sync_recv;
 	bool async_recv;
