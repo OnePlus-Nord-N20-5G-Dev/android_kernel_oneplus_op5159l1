@@ -4925,6 +4925,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	/* notify HCD that we have a device connected and addressed */
 	if (hcd->driver->update_device)
 		hcd->driver->update_device(hcd, udev);
+
 	hub_set_initial_usb2_lpm_policy(udev);
 fail:
 	if (retval) {
@@ -5112,6 +5113,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		}
 
 		/* reset (non-USB 3.0 devices) and get descriptor */
+
 		status = hub_port_init(hub, udev, port1, i);
 		if (status < 0)
 			goto loop;
