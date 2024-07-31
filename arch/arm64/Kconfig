@@ -1851,3 +1851,16 @@ source "arch/arm64/kvm/Kconfig"
 if CRYPTO
 source "arch/arm64/crypto/Kconfig"
 endif
+
+config OPLUS_SYSTEM_KERNEL_QCOM
+  bool "config oplus system feature "
+  default y
+  help
+	define this config to Distinguish between qcom and mtk platform
+
+
+config OPLUS_FEATURE_CHG_MISC
+	tristate "OPLUS CHARGER MISC"
+	default y
+	help
+	  Enables support for the oplus charging misc
