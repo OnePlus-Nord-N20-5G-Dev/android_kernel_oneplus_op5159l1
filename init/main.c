@@ -483,7 +483,7 @@ void __init parse_early_options(char *cmdline)
 
 bool ext_boot_with_console(void)
 {
-	return !printk_disable_uart;
+	return false;
 }
 EXPORT_SYMBOL(ext_boot_with_console);
 
