@@ -45,13 +45,6 @@ static struct poweroff_reason reasons[] = {
         { "modem",			0x28 },//PON_RESTART_REASON_MODEM= 0x28,
         { "android",			0x29 },//PON_RESTART_REASON_ANDROID= 0x29,
         { "safe",			0x2A },//PON_RESTART_REASON_SAFE= 0x2A,
-	//#ifdef OPLUS_FEATURE_AGINGTEST
-  	/*xiaofan.yang, 2019/01/07,Add for factory agingtest*/
-  	{ "sbllowmemtest",		0x2B },///PON_RESTART_REASON_SBL_DDRTEST= 0x2B,
-  	{ "sblmemtest",			0x2C },///PON_RESTART_REASON_SBL_DDR_CUS= 0x2C,
-  	{ "usermemaging",		0x2D },///PON_RESTART_REASON_MEM_AGING= 0x2D,
-  	/*0x2E is SBLTEST FAIL, just happen in ddrtest fail when xbl setup*/
-  	//#endif/*OPLUS_FEATURE_AGINGTEST*/
 	{ "novib",			0x2F },//PON_RESTART_REASON_BOOT_NO_VIBRATION= 0x2F,
        // { "other",			0x3E },//PON_RESTART_REASON_NORMAL= 0x3E,
 #endif /*OPLUS_FEATUREB_BOOT*/
@@ -69,7 +62,12 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 	if (!cmd)
 		return NOTIFY_OK;
 	for (reason = reasons; reason->cmd; reason++) {
-		if (!strcmp(cmd, reason->cmd)) {
+#ifdef OPLUS_BUG_STABILITY
+			if ((!strcmp(cmd, reason->cmd))||
+					(!strcmp("other", reason->cmd))) {
+#else
+			if (!strcmp(cmd, reason->cmd)) {
+#endif
 			nvmem_cell_write(reboot->nvmem_cell,
 					 &reason->pon_reason,
 					 sizeof(reason->pon_reason));
