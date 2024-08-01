@@ -137,5 +137,4 @@ config OPLUS_PD_MANAGER_CHARGER
         bool "PD_MANAGER support"
         help
           Say Y here to declare PD_MANAGER support
->>>>>>> a3fa1f250aca (Add drivers/power/ modifications)
 #endif
